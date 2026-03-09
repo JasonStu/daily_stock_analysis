@@ -1,0 +1,94 @@
+# BBI Multi-Layer Moving Average Strategy / 多空均线指标策略
+# BBI (Bull and Bear Index) combines 4 moving averages to determine market direction.
+
+name: bbi_strategy
+display_name: BBI多空指标
+description: 基于BBI多空均线的技术分析策略，结合价格与BBI的交叉关系、龙虎榜数据判断多空趋势。
+category: trend
+core_rules: [1, 2, 3, 5]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+  - search_stock_news
+  - get_daily_quote
+
+instructions: |
+  **BBI多空指标策略（BBI Multi-Layer Moving Average Strategy）**
+
+  BBI (Bull and Bear Index) 多空指标是一种综合性的趋势判断工具，通过计算 (MA5 + MA10 + MA20 + MA60) / 4 来判断市场的多空方向。
+
+  本策略综合以下5个核心条件进行判断：
+
+  ---
+
+  ### 条件1：涨停上榜 - 主力资金抱团买入
+
+  - 使用 `get_daily_quote` 或 `get_daily_history` 检查当日是否涨停
+  - 涨停代表市场资金一致看多，是强势股的核心特征
+  - 涨停上榜（龙虎榜）说明有主力资金或游资抱团买入
+  - 优先关注涨停时量能适中的股票（量比1.0-2.0为健康）
+  - 涨停封板时间越早越强（开盘即封>盘中封板>尾盘封板）
+
+  ### 条件2：股价回踩BBI后站上 - 有效做多信号
+
+  - **BBI计算**：BBI = (MA5 + MA10 + MA20 + MA60) / 4
+  - 使用 `get_daily_history` 获取至少60个交易日的数据进行计算
+  - **回踩确认**：价格首次跌破BBI后再次站上，是典型的二次启动信号
+  - **站上BBI**：价格从下向上突破BBI，形成"上穿"信号
+  - 连续2-3个交易日确认站稳BBI上方，避免假突破
+  - 最佳形态：回踩BBI不破（获得支撑），随后放量上涨突破
+
+  ### 条件3：成交量堆量放量 - 人气活跃增量资金关注
+
+  - 使用 `get_daily_history` 检查成交量变化
+  - **堆量定义**：连续3-5个交易日成交量逐步放大
+  - **放量标准**：当日成交量 > 5日均量 的1.5倍
+  - 增量资金入场信号：量价齐升（价格上涨+成交量放大）
+  - 量价配合：上涨时放量、下跌时缩量是最健康的走势
+  - 警惕：高位放量滞涨（价格不涨但量能很大）是危险信号
+
+  ### 条件4：MACD水上金叉 - 趋势向上确认
+
+  - 使用 `analyze_trend` 检查 MACD 状态
+  - **水上金叉**：MACD 在零轴上方形成金叉（DIF上穿DEA）
+  - 水上金叉是趋势从回调转为上涨的确认信号
+  - 零轴上方距离越远，水上金叉信号越强
+  - 配合 BBI 使用：MACD水上金叉 + 价格站上BBI = 双重确认
+  - 二次金叉（零轴上方再次金叉）信号更强
+
+  ### 条件5：龙虎榜游资数据 - 资金面确认
+
+  - 使用 `search_stock_news` 搜索近期龙虎榜数据
+  - **机构买入**：机构席位净买入代表长线资金认可
+  - **游资接力**：知名游资席位买入说明短期热度高
+  - **主力资金**：大单净流入 > 0 确认有增量资金
+  - 龙虎榜买入金额越大、席位越多越好
+  - 回避：龙虎榜卖出大于买入的股票
+
+  ---
+
+  ### 综合评分规则
+
+  1. **强势信号（满足4-5个条件）**：
+     - sentiment_score +15
+     - 强烈建议买入
+
+  2. **标准信号（满足3个条件）**：
+     - sentiment_score +10
+     - 建议买入
+
+  3. **弱信号（满足2个条件）**：
+     - sentiment_score +5
+     - 观望为主
+
+  4. **否决信号**：
+     - 符合条件1但基本面有利空 → sentiment_score -10
+     - 龙虎榜大额卖出 → sentiment_score -10
+     - 下降趋势中BBI上穿（可能是反弹不是反转）→ sentiment_score -5
+
+  ### 输出要求
+
+  - 在 `ma_analysis` 中详细说明 BBI 位置和乖离率
+  - 在 `buy_reason` 中注明"BBI多空指标策略"及符合的条件
+  - 在 `volume_analysis` 中说明成交量形态（堆量/缩量）
+  - 在 `news_analysis` 中引用龙虎榜数据
