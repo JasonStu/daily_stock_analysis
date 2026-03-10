@@ -30,7 +30,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from src.analyzer import STOCK_NAME_MAP
+from src.data.stock_mapping import STOCK_NAME_MAP
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -124,6 +124,26 @@ def is_bse_code(code: str) -> bool:
     if len(c) != 6 or not c.isdigit():
         return False
     return c.startswith(("8", "4")) or c.startswith("92")
+
+def is_st_stock(name: str) -> bool:
+    """
+    Check if the stock is an ST or *ST stock based on its name.
+
+    ST stocks have special trading rules and typically a ±5% limit.
+    """
+    n = (name or "").upper()
+    return 'ST' in n
+
+def is_kc_cy_stock(code: str) -> bool:
+    """
+    Check if the stock is a STAR Market (科创板) or ChiNext (创业板) stock based on its code.
+
+    - STAR Market: Codes starting with 688
+    - ChiNext: Codes starting with 300
+    Both have a ±20% limit.
+    """
+    c = (code or "").strip().split(".")[0]
+    return c.startswith("688") or c.startswith("30")
 
 
 def canonical_stock_code(code: str) -> str:
