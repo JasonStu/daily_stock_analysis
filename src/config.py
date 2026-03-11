@@ -77,7 +77,9 @@ class Config:
     feishu_folder_token: Optional[str] = None  # 目标文件夹 Token
 
     # === 数据源 API Token ===
-    tushare_token: Optional[str] = None
+    tushare_token: Optional[str] = None  # Tushare 官方 Token
+    tinyshare_token: Optional[str] = None  # TinyShare Token（兼容 Tushare API）
+    minishare_apikey: Optional[str] = None  # MiniShare API Key（实时行情 rt_k_ms）
     
     # === AI 分析配置 ===
     # LiteLLM unified model config (provider/model format, e.g. gemini/gemini-2.5-flash)
@@ -563,6 +565,8 @@ class Config:
             feishu_app_secret=os.getenv('FEISHU_APP_SECRET'),
             feishu_folder_token=os.getenv('FEISHU_FOLDER_TOKEN'),
             tushare_token=os.getenv('TUSHARE_TOKEN'),
+            tinyshare_token=os.getenv('TINYSHARE_TOKEN'),
+            minishare_apikey=os.getenv('MINISHARE_APIKEY'),
             litellm_model=litellm_model,
             litellm_fallback_models=litellm_fallback_models,
             litellm_config_path=litellm_config_path,

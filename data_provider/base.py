@@ -445,18 +445,21 @@ class DataFetcherManager:
         初始化默认数据源列表
 
         优先级动态调整逻辑：
+        - 如果配置了 MINISHARE_APIKEY：MiniFetcher 优先级提升为 1（有实时行情）
         - 如果配置了 TUSHARE_TOKEN：Tushare 优先级提升为 0（最高）
         - 否则按默认优先级：
           0. EfinanceFetcher (Priority 0) - 最高优先级
           1. AkshareFetcher (Priority 1)
           2. PytdxFetcher (Priority 2) - 通达信
           2. TushareFetcher (Priority 2)
+          2. MiniFetcher (Priority 2)
           3. BaostockFetcher (Priority 3)
           4. YfinanceFetcher (Priority 4)
         """
         from .efinance_fetcher import EfinanceFetcher
         from .akshare_fetcher import AkshareFetcher
         from .tushare_fetcher import TushareFetcher
+        from .mini_fetcher import MiniFetcher
         from .pytdx_fetcher import PytdxFetcher
         from .baostock_fetcher import BaostockFetcher
         from .yfinance_fetcher import YfinanceFetcher
@@ -468,6 +471,7 @@ class DataFetcherManager:
         efinance = EfinanceFetcher()
         akshare = AkshareFetcher()
         tushare = TushareFetcher()  # 会根据 Token 配置自动调整优先级
+        mini_fetcher = MiniFetcher()  # TinyShare + MiniShare（会根据 API Key 配置自动调整优先级）
         pytdx = PytdxFetcher()      # 通达信数据源（可配 PYTDX_HOST/PYTDX_PORT）
         baostock = BaostockFetcher()
         yfinance = YfinanceFetcher()
@@ -477,6 +481,7 @@ class DataFetcherManager:
             efinance,
             akshare,
             tushare,
+            mini_fetcher,
             pytdx,
             baostock,
             yfinance,

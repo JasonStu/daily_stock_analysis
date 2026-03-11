@@ -10,6 +10,15 @@
 3. 防封禁流控策略
 
 数据源优先级（动态调整）：
+【配置了 MINISHARE_APIKEY 时】
+1. MiniFetcher (Priority 1) - 🔥 最高优先级（有实时行情 rt_k_ms）
+2. TushareFetcher (Priority 2) - 来自 tushare 库
+3. EfinanceFetcher (Priority 0) - 来自 efinance 库
+4. AkshareFetcher (Priority 1) - 来自 akshare 库
+5. PytdxFetcher (Priority 2) - 来自 pytdx 库（通达信）
+6. BaostockFetcher (Priority 3) - 来自 baostock 库
+7. YfinanceFetcher (Priority 4) - 来自 yfinance 库
+
 【配置了 TUSHARE_TOKEN 时】
 1. TushareFetcher (Priority 0) - 🔥 最高优先级（动态提升）
 2. EfinanceFetcher (Priority 0) - 同优先级
@@ -33,6 +42,7 @@ from .base import BaseFetcher, DataFetcherManager
 from .efinance_fetcher import EfinanceFetcher
 from .akshare_fetcher import AkshareFetcher, is_hk_stock_code
 from .tushare_fetcher import TushareFetcher
+from .mini_fetcher import MiniFetcher
 from .pytdx_fetcher import PytdxFetcher
 from .baostock_fetcher import BaostockFetcher
 from .yfinance_fetcher import YfinanceFetcher
@@ -44,6 +54,7 @@ __all__ = [
     'EfinanceFetcher',
     'AkshareFetcher',
     'TushareFetcher',
+    'MiniFetcher',
     'PytdxFetcher',
     'BaostockFetcher',
     'YfinanceFetcher',
