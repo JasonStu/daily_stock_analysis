@@ -169,12 +169,29 @@ class MiniFetcher(BaseFetcher):
             self._minishare_api = None
 
     def _patch_api_endpoint(self, token: str) -> None:
-        """Patch tushare SDK to use the official api.tushare.pro endpoint."""
+        """Patch tushare SDK to use the official api.tushare.pro endpoint.
+
+        注意：TinyShare token 不需要 patch，让 tinyshare 库原生处理。
+        只有 Tushare 官方 token 才需要 patch。
+        """
         import types
 
+        # 检查 token 类型
+        try:
+            import tinyshare as ts
+            if ts.is_tiny_token(token):
+                # TinyShare token - 不需要 patch，让库原生处理
+                logger.info("使用 TinyShare token，跳过 endpoint patch（原生处理）")
+                return
+        except ImportError:
+            pass
+
+        # 只有 Tushare token 才需要 patch
         TUSHARE_API_URL = "http://api.tushare.pro"
         _token = token
         _timeout = getattr(self._api, '_DataApi__timeout', 30)
+
+        logger.info(f"使用 Tushare token，patch 到: {TUSHARE_API_URL}")
 
         def patched_query(self_api, api_name, fields='', **kwargs):
             req_params = {
