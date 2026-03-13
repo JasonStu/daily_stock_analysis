@@ -10,33 +10,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- 📊 **LLM cost tracking** — all LLM calls (analysis, agent, market review) are recorded in the `llm_usage` table; new `GET /api/v1/usage/summary?period=today|month|all` endpoint returns aggregated token usage broken down by call type and model
-### Fixed
-- 🐛 **历史报告狙击点位显示原始文本** (#452) — 历史详情页现优先展示 `raw_result.dashboard.battle_plan.sniper_points` 中的原始字符串，避免 `analysis_history` 数值列把区间、说明文字或复杂点位压缩成单个数字；保留原有数值列作为回退
+- openclaw Skill 集成指南 — 新增 [docs/openclaw-skill-integration.md](openclaw-skill-integration.md)，说明如何通过 openclaw Skill 调用 DSA API
+- ⚙️ **LLM channel protocol/test UX** — `.env` and Web settings now share the same channel shape (`LLM_CHANNELS` + `LLM_<NAME>_PROTOCOL/BASE_URL/API_KEY/MODELS/ENABLED`); settings page adds per-channel connection testing, primary/fallback/vision model selection, and protocol-aware model prefixing
 
-### Changed
-- 🔎 **Fetcher failure observability** — historical data logs now record fetcher start/success/failure with elapsed time, explicit failover transitions, and clearer final outcomes; Efinance/Eastmoney failures now include upstream endpoint and normalized categories such as `remote_disconnect` and `timeout`; Akshare 新浪/腾讯实时行情日志 now also include upstream endpoint and classified failures for HTTP status, disconnects, and malformed payloads
+### Fixed
+- 🔧 **LLM runtime selection guardrails** — YAML 模式下渠道编辑器不再覆盖 `LITELLM_MODEL` / fallback / Vision；系统配置校验补上“全部渠道禁用”后的运行时来源检查，并修复 `vertexai/...` 这类协议别名模型被重复加前缀的问题
+- 🐛 **P0 基本面聚合稳定性修复** (#614) — 修复 `get_stock_info` 板块语义回归（新增 `belong_boards` 并保留 `boards` 兼容别名）、引入基本面上下文精简返回以控制 token、为基本面缓存增加最大条目淘汰，并补齐 ETF 总体状态聚合与 NaN 板块字段过滤，保证 fail-open 与最小入侵。
+- 🔧 **GitHub Actions 搜索引擎环境变量补充** — 工作流新增 `MINIMAX_API_KEYS`、`BRAVE_API_KEYS`、`SEARXNG_BASE_URLS` 环境变量映射，使 GitHub Actions 用户可配置 MiniMax、Brave、SearXNG 搜索服务（此前 v3.5.0 已添加 provider 实现但缺少工作流配置）
+
+## [3.5.0] - 2026-03-12
 
 ### Added
-- **Agent 问股导出与发送** (#495) — 问股页面新增「导出会话」按钮，将会话保存为本地 .md 文件；新增「发送」按钮，将会话发送到已配置的通知渠道（企业微信/飞书/邮件等）；新增 `POST /api/v1/agent/chat/send` 接口
-- **Agent 问股后台执行** (#495) — 问股分析在切换页面后继续执行，不中断；完成时在 Dock 问股图标显示角标提示；切换会话或新建会话时自动取消进行中的流式请求
-- **Report Engine P0** — Pydantic schema validation for LLM JSON output; Jinja2 templates (`report_markdown.j2`, `report_wechat.j2`, `report_brief.j2`) with fallback to legacy string concatenation; content integrity checks with conditional retry and placeholder fill; brief mode (`REPORT_TYPE=brief`) for 3-5 sentence summaries; history comparison service for signal changes across recent analyses
-- **Report config** — `REPORT_TEMPLATES_DIR`, `REPORT_RENDERER_ENABLED`, `REPORT_INTEGRITY_ENABLED`, `REPORT_INTEGRITY_RETRY`, `REPORT_HISTORY_COMPARE_N`; `REPORT_TYPE` now supports `brief`
-- **智能导入 (P1)** — 支持图片、CSV/Excel、剪贴板多源导入；Vision LLM 同时提取代码+名称+置信度；名称→代码解析引擎（本地映射+拼音+AkShare fallback）；置信度分层确认（高自动勾选、中/低需人工确认）；统一预览与合并流程
-- **EXTRACT_PROMPT 文档** — `docs/image-extract-prompt.md` 记录完整 prompt 便于 PR 审查；PR 模板新增 EXTRACT_PROMPT 变更展示区块
-- 📖 **LLM 配置指南** — 新增 [docs/LLM_CONFIG_GUIDE.md](LLM_CONFIG_GUIDE.md)，系统讲解三层配置、快速上手、Vision/Agent/Web UI/校验排错；同步更新 README、full-guide、.env.example、FAQ、英文版指南
-- 🔍 **MiniMax Coding Plan web search provider** — new `MiniMaxSearchProvider` with circuit breaker (3 failures → 300s cooldown), dual time-filtering (query augmentation + client-side date filtering), priority: Bocha > Tavily > Brave > SerpAPI > **MiniMax**; configured via `MINIMAX_API_KEYS` env var
-
-### Changed
-- **API 响应扩展（兼容提醒）** — `POST /api/v1/stocks/extract-from-image` 响应新增 `items` 字段（`code/name/confidence` 明细）；保留 `codes` 以兼容旧客户端。对严格 JSON Schema 且不接受未知字段的客户端，需评估并适配该字段变更。
-- **parse-import 错误信息细化** — Excel 解析失败时增加可操作提示（格式、工作表、损坏）；CSV 解析失败（如引号未闭合、列数不一致）时返回具体原因；`docs/full-guide.md` 补充列名说明与常见解析失败场景。
-- **parse_import 日志优化** — 文件读取失败、JSON 解析失败、parse 失败时记录文件类型、大小、错误摘要，便于排查。
-- **AkShare 缓存说明** — `docs/full-guide.md` 补充名称解析 AkShare fallback 的 1h TTL 缓存说明。
-- **Fetcher failure observability** — historical data logs now record fetcher start/success/failure with elapsed time, explicit failover transitions, and clearer final outcomes; Efinance/Eastmoney failures now include upstream endpoint and normalized categories such as `remote_disconnect` and `timeout`; Akshare 新浪/腾讯实时行情日志 now also include upstream endpoint and classified failures for HTTP status, disconnects, and malformed payloads
+- 📊 **Web UI full report drawer** (Fixes #214) — history page adds "Full Report" button to display the complete Markdown analysis report in a side drawer; new `GET /api/v1/history/{record_id}/markdown` endpoint
+- 📊 **LLM cost tracking** — all LLM calls (analysis, agent, market review) recorded in `llm_usage` table; new `GET /api/v1/usage/summary?period=today|month|all` endpoint returns aggregated token usage by call type and model
+- 🔍 **SearXNG search provider** (Fixes #550) — quota-free self-hosted search fallback; priority: Bocha > Tavily > Brave > SerpAPI > MiniMax > SearXNG
+- 🔍 **MiniMax web search provider** — `MiniMaxSearchProvider` with circuit breaker (3 failures → 300s cooldown) and dual time-filtering; configured via `MINIMAX_API_KEYS`
+- 🤖 **Agent models discovery API** — `GET /api/v1/agent/models` returns available model deployments (primary/fallback/source/api_base) for Web UI model selector
+- 🤖 **Agent chat export & send** (#495) — export conversation to .md file; send to configured notification channels; new `POST /api/v1/agent/chat/send`
+- 🤖 **Agent background execution** (#495) — analysis continues when switching pages; badge notification on completion; auto-cancel in-progress stream on session switch
+- 📝 **Report Engine P0** — Pydantic schema validation for LLM JSON; Jinja2 templates (markdown/wechat/brief) with legacy fallback; content integrity checks with retry; brief mode (`REPORT_TYPE=brief`); history signal comparison
+- 📦 **Smart import** — multi-source import from image/CSV/Excel/clipboard; Vision LLM extracts code+name+confidence; name→code resolver (local map + pinyin + AkShare); confidence-tiered confirmation
+- ⚙️ **GitHub Actions LiteLLM config** — workflow supports `LITELLM_CONFIG`/`LITELLM_CONFIG_YAML` for flexible AI provider configuration
+- ⚙️ **Config engine refactor & system API** (#602) — unified config registry, validation and API exposure
+- 📖 **LLM configuration guide** — new `docs/LLM_CONFIG_GUIDE.md` covering 3-tier config, quick start, Vision/Agent/troubleshooting
 
 ### Fixed
-- **问股取消与切换** (#495) — 用户取消流式请求时不再误报为失败；快速切换会话时不再覆盖新 stream 状态
+- 🐛 **analyze_trend always reports No historical data** (#600) — now fetches from DB/DataFetcher instead of broken `get_analysis_context`
+- 🐛 **Chip structure fallback when LLM omits it** (#589) — auto-fills from data source chip data for consistent display across models
+- 🐛 **History sniper points show raw text** (#452) — prioritizes original strings over compressed numeric values
+- 🐛 **GitHub Actions ENABLE_CHIP_DISTRIBUTION configurable** (#617) — no longer hardcoded, supports vars/secrets override
+- 🐛 **`.env` save preserves comments and blank lines** — Web settings no longer destroys `.env` formatting
+- 🐛 **Agent model discovery fixes** — legacy mode includes LiteLLM-native providers; source detection aligned with runtime; fallback deployments no longer expanded per-key
+- 🐛 **Stooq US stock previous close semantics** — no longer misuses open price as previous close
+- 🐛 **Stock name prefetch regression** — prioritizes local `STOCK_NAME_MAP` before remote queries
+- 🐛 **AkShare limit-up/down calculation** (#555) — fixed market analysis statistics
+- 🐛 **AkShare Tencent source field index & ETF quote mapping** (#579)
+- 🐛 **Pytdx stock name cache pagination** (#573) — prevents cache overflow
+- 🐛 **PushPlus oversized report chunking** (#489) — auto-segments long content
+- 🐛 **Agent chat cancel & switch** (#495) — cancel no longer misreports as failure; fast switch no longer overwrites stream state
+- 🐛 **MiniMax search status in `/status` command** (#587)
+- 🐛 **config_registry duplicate BOCHA_API_KEYS** — removed duplicate dict entry that silently overwrote config
 
+### Changed
+- 🔎 **Fetcher failure observability** — logs record start/success/failure with elapsed time, failover transitions; Efinance/Akshare include upstream endpoint and classified failure categories
+- ♻️ **Data source resilience & cleanup** (#602) — fallback chain optimization
+- ♻️ **Image extract API response extension** — new `items` field (code/name/confidence); `codes` preserved for backward compatibility
+- ♻️ **Import parse error messages** — specific failure reasons for Excel/CSV; improved logging with file type and size
+
+### Docs
+- 📖 LLM config guide refactored for clarity (#583)
+- 📖 `image-extract-prompt.md` with full prompt documentation
+- 📖 AkShare fallback cache TTL documentation
 ## [3.4.10] - 2026-03-07
 
 ### Fixed
@@ -821,7 +845,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-[Unreleased]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.4.10...HEAD
+[Unreleased]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.5.0...HEAD
+[3.5.0]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.4.10...v3.5.0
 [3.4.10]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.4.9...v3.4.10
 [3.4.9]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.4.8...v3.4.9
 [3.4.8]: https://github.com/ZhuLinsen/daily_stock_analysis/compare/v3.4.7...v3.4.8

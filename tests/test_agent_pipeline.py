@@ -109,6 +109,7 @@ class TestAgentResultConversion(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True
@@ -309,6 +310,7 @@ class TestPipelineRouting(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True
@@ -329,7 +331,8 @@ class TestPipelineRouting(unittest.TestCase):
                 "600519", ReportType.SIMPLE, "q1",
                 pipeline.fetcher_manager.get_realtime_quote.return_value.name,
                 pipeline.fetcher_manager.get_realtime_quote.return_value,
-                pipeline.fetcher_manager.get_chip_distribution.return_value
+                pipeline.fetcher_manager.get_chip_distribution.return_value,
+                pipeline.fetcher_manager.get_fundamental_context.return_value,
             )
 
     def test_legacy_mode_does_not_call_agent(self):
@@ -350,6 +353,7 @@ class TestPipelineRouting(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True
@@ -400,6 +404,7 @@ class TestAnalyzeWithAgentStockName(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True
@@ -574,6 +579,7 @@ class TestSafeInt(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True
@@ -714,6 +720,7 @@ class TestSkillActivation(unittest.TestCase):
             mock_cfg.tavily_api_keys = []
             mock_cfg.brave_api_keys = []
             mock_cfg.serpapi_keys = []
+            mock_cfg.searxng_base_urls = []
             mock_cfg.news_max_age_days = 7
             mock_cfg.enable_realtime_quote = True
             mock_cfg.enable_chip_distribution = True

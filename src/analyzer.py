@@ -12,6 +12,7 @@ A股自选股智能分析系统 - AI分析层
 
 import json
 import logging
+import math
 import time
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Tuple
@@ -21,7 +22,7 @@ from json_repair import repair_json
 from litellm import Router
 
 from src.agent.llm_adapter import get_thinking_extra_body
-from src.config import Config, get_config, get_api_keys_for_model, extra_litellm_params
+from src.config import Config, get_config, get_api_keys_for_model, extra_litellm_params, get_configured_llm_models
 from src.storage import persist_llm_usage
 from src.data.stock_mapping import STOCK_NAME_MAP
 from src.schemas.report_schema import AnalysisReportSchema
@@ -89,6 +90,92 @@ def apply_placeholder_fill(result: "AnalysisResult", missing_fields: List[str]) 
             if "sniper_points" not in result.dashboard["battle_plan"]:
                 result.dashboard["battle_plan"]["sniper_points"] = {}
             result.dashboard["battle_plan"]["sniper_points"]["stop_loss"] = "待补充"
+
+
+# ---------- chip_structure fallback (Issue #589) ----------
+
+_CHIP_KEYS: tuple = ("profit_ratio", "avg_cost", "concentration", "chip_health")
+
+
+def _is_value_placeholder(v: Any) -> bool:
+    """True if value is empty or placeholder (N/A, 数据缺失, etc.)."""
+    if v is None:
+        return True
+    if isinstance(v, (int, float)) and v == 0:
+        return True
+    s = str(v).strip().lower()
+    return s in ("", "n/a", "na", "数据缺失", "未知")
+
+
+def _safe_float(v: Any, default: float = 0.0) -> float:
+    """Safely convert to float; return default on failure. Private helper for chip fill."""
+    if v is None:
+        return default
+    if isinstance(v, (int, float)):
+        try:
+            return default if math.isnan(float(v)) else float(v)
+        except (ValueError, TypeError):
+            return default
+    try:
+        return float(str(v).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _derive_chip_health(profit_ratio: float, concentration_90: float) -> str:
+    """Derive chip_health from profit_ratio and concentration_90."""
+    if profit_ratio >= 0.9:
+        return "警惕"  # 获利盘极高
+    if concentration_90 >= 0.25:
+        return "警惕"  # 筹码分散
+    if concentration_90 < 0.15 and 0.3 <= profit_ratio < 0.9:
+        return "健康"  # 集中且获利比例适中
+    return "一般"
+
+
+def _build_chip_structure_from_data(chip_data: Any) -> Dict[str, Any]:
+    """Build chip_structure dict from ChipDistribution or dict."""
+    if hasattr(chip_data, "profit_ratio"):
+        pr = _safe_float(chip_data.profit_ratio)
+        ac = chip_data.avg_cost
+        c90 = _safe_float(chip_data.concentration_90)
+    else:
+        d = chip_data if isinstance(chip_data, dict) else {}
+        pr = _safe_float(d.get("profit_ratio"))
+        ac = d.get("avg_cost")
+        c90 = _safe_float(d.get("concentration_90"))
+    chip_health = _derive_chip_health(pr, c90)
+    return {
+        "profit_ratio": f"{pr:.1%}",
+        "avg_cost": ac if (ac is not None and _safe_float(ac) != 0.0) else "N/A",
+        "concentration": f"{c90:.2%}",
+        "chip_health": chip_health,
+    }
+
+
+def fill_chip_structure_if_needed(result: "AnalysisResult", chip_data: Any) -> None:
+    """When chip_data exists, fill chip_structure placeholder fields from chip_data (in-place)."""
+    if not result or not chip_data:
+        return
+    try:
+        if not result.dashboard:
+            result.dashboard = {}
+        dash = result.dashboard
+        # Use `or {}` rather than setdefault so that an explicit `null` from LLM is also replaced
+        dp = dash.get("data_perspective") or {}
+        dash["data_perspective"] = dp
+        cs = dp.get("chip_structure") or {}
+        filled = _build_chip_structure_from_data(chip_data)
+        # Start from a copy of cs to preserve any extra keys the LLM may have added
+        merged = dict(cs)
+        for k in _CHIP_KEYS:
+            if _is_value_placeholder(merged.get(k)):
+                merged[k] = filled[k]
+        if merged != cs:
+            dp["chip_structure"] = merged
+            logger.info("[chip_structure] Filled placeholder chip fields from data source (Issue #589)")
+    except Exception as e:
+        logger.warning("[chip_structure] Fill failed, skipping: %s", e)
 
 
 def get_stock_name_multi_source(
@@ -664,14 +751,17 @@ class GeminiAnalyzer:
                 if extra:
                     call_kwargs["extra_body"] = extra
 
-                if use_channel_router and self._router:
+                _router_model_names = set(get_configured_llm_models(config.llm_model_list))
+                if use_channel_router and self._router and model in _router_model_names:
                     # Channel / YAML path: Router manages key + base_url per model
                     response = self._router.completion(**call_kwargs)
-                elif self._router and model == config.litellm_model:
+                elif self._router and model == config.litellm_model and not use_channel_router:
                     # Legacy path: Router only for primary model multi-key
                     response = self._router.completion(**call_kwargs)
                 else:
-                    # Legacy path: direct call for fallback models
+                    # Legacy/direct-env path: direct call (also handles direct-env
+                    # providers like groq/ or bedrock/ that are not in the Router
+                    # model_list even when channel mode is active)
                     keys = get_api_keys_for_model(model, config)
                     if keys:
                         call_kwargs["api_key"] = keys[0]
@@ -804,7 +894,7 @@ class GeminiAnalyzer:
 
             # 设置生成配置
             generation_config = {
-                "temperature": config.gemini_temperature,
+                "temperature": config.llm_temperature,
                 "max_output_tokens": 8192,
             }
 
